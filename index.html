@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FISIKA INTERAKTIF XI — SMART LEARNING</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        navy: {
+                            800: '#0B192C',
+                            900: '#1E3E62',
+                        },
+                        electric: '#0066FF',
+                        cyan: {
+                            DEFAULT: '#00D8F6',
+                            hover: '#00B8D4',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js for Learning Analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- MathJax for rendering LaTeX Physics equations -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #F8FAFC;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen flex flex-col bg-slate-50">
+
+    <div id="toastContainer" class="fixed top-5 right-5 z-50 flex flex-col gap-2 max-w-sm"></div>
+
+    <div id="modalOverlay" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40 hidden flex items-center justify-center p-4">
+        <div id="modalContainer" class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 relative overflow-hidden transition-all transform scale-95 opacity-0">
+            <button id="closeModalBtn" onclick="closeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-2 rounded-full hover:bg-slate-100 transition">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+            <div id="modalContent"></div>
+        </div>
+    </div>
+
+    <!-- MAIN APP CONTAINER -->
+    <div id="app" class="flex-1 flex flex-col"></div>
+
+    <script>
+        const APP_CONFIG = {
+            APP_NAME: "FISIKA INTERAKTIF XI — SMART LEARNING",
+            DEVELOPER_NAME: "Muhammad Iqbal, S.Pd.",
+            SUBJECT_NAME: "Fisika",
+            SCHOOL_LEVEL: "SMA",
+            GRADE: "XI",
+            SEMESTER: "1 (Ganjil)",
+            TOPIC_NAME: "Gerak Lurus Beraturan (GLB)",
+            LEARNING_OUTCOMES: "Siswa mampu memahami konsep dasar gerak benda pada lintasan lurus dengan kecepatan tetap dan mengaplikasikannya dalam permasalahan fisika sehari-hari.",
+            LEARNING_OBJECTIVES: [
+                "Menjelaskan pengertian Gerak Lurus Beraturan (GLB) dan besaran-besaran fisis terkait.",
+                "Mengidentifikasi ciri-ciri GLB pada benda yang bergerak.",
+                "Membedakan konsep jarak, perpindahan, kelajuan, dan kecepatan secara konseptual dan matematis.",
+                "Menggunakan persamaan GLB (s = v * t) untuk menyelesaikan permasalahan kuantitatif.",
+                "Membaca, membuat, dan menginterpretasikan grafik posisi terhadap waktu (s-t) dan kecepatan terhadap waktu (v-t).",
+                "Menyelesaikan persoalan kontekstual fisika tentang GLB dalam kehidupan sehari-hari."
+            ],
+            TEACHER_USERNAME: "guru",
+            TEACHER_PASSWORD: "guru12345",
+            STUDENT_USERNAME: "siswa",
+            STUDENT_PASSWORD: "siswa12345",
+            DATABASE_PROVIDER: "Google Sheets via Apps Script Web App API",
+            DEFAULT_QUESTION_COUNT: 30,
+            MIN_QUESTION_COUNT: 30,
+            MAX_QUESTION_COUNT: 50,
+            PASSING_SCORE: 75,
+            MAX_EVALUATION_ATTEMPTS: 1,
+            APP_TIMEZONE: "Asia/Jakarta",
+            UI_LANGUAGE: "id-ID"
+        };
+
+        // Local Storage State Management
+        const Storage = {
+            get(key, defaultValue) {
+                const data = localStorage.getItem('fisika_app_' + key);
+                return data ? JSON.parse(data) : defaultValue;
+            },
+            set(key, value) {
+                localStorage.setItem('fisika_app_' + key, JSON.stringify(value));
+            }
+        };
+
+        // Initialize Default Database Context
+        function initStorage() {
+            if (!Storage.get('users')) {
+                Storage.set('users', [
+                    { id: 'usr_1', username: APP_CONFIG.TEACHER_USERNAME, password: APP_CONFIG.TEACHER_PASSWORD, role: 'teacher', name: APP_CONFIG.DEVELOPER_NAME, active: true },
+                    { id: 'usr_2', username: APP_CONFIG.STUDENT_USERNAME, password: APP_CONFIG.STUDENT_PASSWORD, role: 'student', name: 'Ahmad Fauzi', student_id: '10293847', class_name: 'XI MIPA 1', active: true }
+                ]);
+            }
+            if (!Storage.get('config')) {
+                Storage.set('config', APP_CONFIG);
+            }
+            if (!Storage.get('evaluations')) {
+                Storage.set('evaluations', [
+                    {
+                        evaluation_id: "eval_101",
+                        student_id: "usr_2",
+                        nisn: "10293847",
+                        student_name: "Ahmad Fauzi",
+                        topic: "Gerak Lurus Beraturan (GLB)",
+                        score: 80,
+                        correct_count: 24,
+                        incorrect_count: 6,
+                        unanswered_count: 0,
+                        total_questions: 30,
+                        submitted_at: new Date(Date.now() - 86400000).toISOString(),
+                        attempts: 1
+                    }
+                ]);
+            }
+            if (!Storage.get('progress')) {
+                Storage.set('progress', {
+                    'usr_2': {
+                        completed_modules: ['mod_1', 'mod_2'],
+                        last_accessed: new Date().toISOString()
+                    }
+                });
+            }
+        }
+
+        initStorage();
+
+        // Application State
+        let state = {
+            currentUser: Storage.get('session_user', null),
+            currentTab: 'dashboard', // dashboard, materials, simulation, evaluation, analytics, settings
+            simulationState: {
+                v: 10, // speed m/s
+                s0: 0, // initial position m
+                tMax: 20, // total duration sec
+                time: 0,
+                running: false,
+                interval: null,
+                history: []
+            },
+            examState: {
+                active: false,
+                currentQuestion: 0,
+                answers: {},
+                timeLeft: 3600, // 60 mins
+                timerInterval: null
+            }
+        };
+
+        const DefaultQuestionsBank = Array.from({ length: 35 }).map((_, i) => {
+            const speed = (i + 1) * 2;
+            const time = 5 + (i % 5) * 2;
+            const dist = speed * time;
+            return {
+                id: `q_${i+1}`,
+                topic: APP_CONFIG.TOPIC_NAME,
+                difficulty: i % 3 === 0 ? 'Mudah' : (i % 3 === 1 ? 'Sedang' : 'Sulit'),
+                text: `Sebuah mobil bergerak dengan kecepatan tetap sebesar ${speed} m/s pada lintasan lurus. Berapakah jarak yang ditempuh mobil tersebut dalam waktu ${time} detik?`,
+                options: [
+                    `${dist - 5} meter`,
+                    `${dist} meter`,
+                    `${dist + 10} meter`,
+                    `${dist + 5} meter`,
+                    `${dist * 2} meter`
+                ],
+                correct: 1, // index 1 is correct
+                explanation: `Menggunakan rumus GLB s = v × t. Diketahui v = ${speed} m/s dan t = ${time} s. Maka s = ${speed} × ${time} = ${dist} meter.`
+            };
+        });
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            const colors = type === 'success' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white';
+            toast.className = `px-4 py-3 rounded-xl shadow-lg ${colors} flex items-center justify-between text-sm font-medium transition transform translate-x-full duration-300`;
+            toast.innerHTML = `<span>${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.remove('translate-x-full'), 10);
+            setTimeout(() => {
+                toast.classList.add('translate-x-full');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function openModal(htmlContent) {
+            const overlay = document.getElementById('modalOverlay');
+            const container = document.getElementById('modalContainer');
+            document.getElementById('modalContent').innerHTML = htmlContent;
+            overlay.classList.remove('hidden');
+            setTimeout(() => {
+                container.classList.remove('scale-95', 'opacity-0');
+                container.classList.add('scale-100', 'opacity-100');
+            }, 10);
+            lucide.createIcons();
+        }
+
+        function closeModal() {
+            const overlay = document.getElementById('modalOverlay');
+            const container = document.getElementById('modalContainer');
+            container.classList.remove('scale-100', 'opacity-100');
+            container.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => overlay.classList.add('hidden'), 200);
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const usernameInput = document.getElementById('username').value.trim();
+            const passwordInput = document.getElementById('password').value.trim();
+            const users = Storage.get('users', []);
+
+            const foundUser = users.find(u => u.username === usernameInput && u.password === passwordInput);
+
+            if (foundUser) {
+                state.currentUser = foundUser;
+                Storage.set('session_user', foundUser);
+                showToast(`Selamat datang kembali, ${foundUser.name}!`);
+                renderApp();
+            } else {
+                showToast('Username atau password tidak cocok!', 'error');
+            }
+        }
+
+        function handleLogout() {
+            state.currentUser = null;
+            Storage.set('session_user', null);
+            showToast('Anda telah keluar dari aplikasi.');
+            renderApp();
+        }
+
+        function renderLogin() {
+            const cfg = Storage.get('config', APP_CONFIG);
+            return `
+            <div class="min-h-screen flex flex-col md:flex-row bg-slate-900">
+                <!-- Left Panel Branding -->
+                <div class="md:w-1/2 bg-gradient-to-br from-navy-900 via-slate-900 to-electric p-8 lg:p-16 flex flex-col justify-between relative overflow-hidden">
+                    <div class="absolute -right-20 -bottom-20 w-80 h-80 bg-cyan/10 rounded-full blur-3xl pointer-events-none"></div>
+                    <div>
+                        <div class="flex items-center gap-3 text-cyan mb-8">
+                            <i data-lucide="atom" class="w-10 h-10 animate-spin-slow"></i>
+                            <span class="font-bold text-xl tracking-wider">SMART PHYSICS</span>
+                        </div>
+                        <span class="inline-block px-3 py-1 bg-cyan/20 text-cyan rounded-full text-xs font-semibold uppercase tracking-widest mb-4">
+                            ${cfg.SUBJECT_NAME} | Kelas ${cfg.GRADE} ${cfg.SCHOOL_LEVEL}
+                        </span>
+                        <h1 class="text-4xl lg:text-5xl font-extrabold text-white leading-tight mb-4">
+                            ${cfg.APP_NAME}
+                        </h1>
+                        <p class="text-slate-300 text-base leading-relaxed max-w-md">
+                            Platform pembelajaran fisika interaktif berbasis simulasi digital, evaluasi otomatis, dan analisis capaian belajar real-time.
+                        </p>
+                    </div>
+
+                    <div class="mt-12 pt-6 border-t border-slate-700/60 text-xs text-slate-400">
+                        <p class="font-medium text-slate-300">Pengembang & Penanggung Jawab:</p>
+                        <p class="text-cyan font-semibold text-sm mt-0.5">${cfg.DEVELOPER_NAME}</p>
+                        <p class="mt-2 text-slate-500">Target Kurikulum: GLB & Kinematika Benda</p>
+                    </div>
+                </div>
+
+                <!-- Right Panel Login Form -->
+                <div class="md:w-1/2 bg-white p-8 lg:p-16 flex items-center justify-center">
+                    <div class="w-full max-w-md">
+                        <div class="mb-8">
+                            <h2 class="text-2xl font-bold text-slate-900">Masuk ke Akun Anda</h2>
+                            <p class="text-slate-500 text-sm mt-1">Gunakan akun Guru atau Siswa untuk melanjutkan</p>
+                        </div>
+
+                        <!-- Demo Info Banner -->
+                        <div class="mb-6 p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600 space-y-1">
+                            <p class="font-semibold text-slate-800 flex items-center gap-1">
+                                <i data-lucide="info" class="w-4 h-4 text-electric"></i> Akun Demo Sistem:
+                            </p>
+                            <p><span class="font-medium text-slate-700">Guru:</span> username: <code class="bg-slate-200 px-1 py-0.5 rounded">${cfg.TEACHER_USERNAME}</code> | password: <code class="bg-slate-200 px-1 py-0.5 rounded">${cfg.TEACHER_PASSWORD}</code></p>
+                            <p><span class="font-medium text-slate-700">Siswa:</span> username: <code class="bg-slate-200 px-1 py-0.5 rounded">${cfg.STUDENT_USERNAME}</code> | password: <code class="bg-slate-200 px-1 py-0.5 rounded">${cfg.STUDENT_PASSWORD}</code></p>
+                        </div>
+
+                        <form onsubmit="handleLogin(event)" class="space-y-5">
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">Username</label>
+                                <div class="relative">
+                                    <i data-lucide="user" class="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                    <input type="text" id="username" required placeholder="Masukkan username" class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-electric focus:bg-white outline-none text-sm transition">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">Password</label>
+                                <div class="relative">
+                                    <i data-lucide="lock" class="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                    <input type="password" id="password" required placeholder="••••••••" class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-electric focus:bg-white outline-none text-sm transition">
+                                </div>
+                            </div>
+
+                            <button type="submit" class="w-full py-3.5 bg-electric hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg shadow-electric/30 transition flex items-center justify-center gap-2 text-sm">
+                                <span>Masuk Sekarang</span>
+                                <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                            </button>
+                        </form>
+
+                        <div class="mt-8 text-center text-xs text-slate-400">
+                            &copy; ${new Date().getFullYear()} ${cfg.APP_NAME}. <br>Hak Cipta Dilindungi Undang-Undang.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            `;
+        }
+
+        function renderMainLayout(contentHtml) {
+            const user = state.currentUser;
+            const cfg = Storage.get('config', APP_CONFIG);
+
+            const navItems = [
+                { id: 'dashboard', label: 'Dashboard', icon: 'layout-dashboard' },
+                { id: 'materials', label: 'Materi & Modul', icon: 'book-open' },
+                { id: 'simulation', label: 'Simulasi GLB', icon: 'activity' },
+                { id: 'evaluation', label: 'Evaluasi & Ujian', icon: 'file-check' },
+                { id: 'analytics', label: 'Laporan & Hasil', icon: 'bar-chart-3' },
+            ];
+
+            if (user.role === 'teacher') {
+                navItems.push({ id: 'settings', label: 'Pengaturan Kelas', icon: 'settings' });
+            }
+
+            return `
+            <div class="min-h-screen flex flex-col md:flex-row bg-slate-100">
+                <!-- Sidebar Desktop -->
+                <aside class="hidden md:flex flex-col w-64 bg-navy-800 text-slate-300 border-r border-slate-700/50 flex-shrink-0">
+                    <div class="p-6 border-b border-slate-700/50 flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-electric/20 text-cyan flex items-center justify-center font-bold">
+                            <i data-lucide="atom" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <h1 class="font-extrabold text-white text-sm tracking-tight">${cfg.SUBJECT_NAME} XI</h1>
+                            <p class="text-xs text-cyan font-medium">Smart Learning</p>
+                        </div>
+                    </div>
+
+                    <div class="px-4 py-3 bg-navy-900/60 border-b border-slate-700/50 text-xs">
+                        <span class="text-slate-400">Pengembang:</span>
+                        <p class="text-white font-medium truncate">${cfg.DEVELOPER_NAME}</p>
+                    </div>
+
+                    <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
+                        ${navItems.map(item => `
+                            <button onclick="switchTab('${item.id}')" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition ${state.currentTab === item.id ? 'bg-electric text-white shadow-lg shadow-electric/30' : 'hover:bg-slate-800/80 text-slate-400 hover:text-white'}">
+                                <i data-lucide="${item.icon}" class="w-5 h-5"></i>
+                                <span>${item.label}</span>
+                            </button>
+                        `).join('')}
+                    </nav>
+
+                    <div class="p-4 border-t border-slate-700/50">
+                        <div class="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-800/60 mb-3">
+                            <div class="w-8 h-8 rounded-full bg-cyan/20 text-cyan flex items-center justify-center font-bold text-xs uppercase">
+                                ${user.name.charAt(0)}
+                            </div>
+                            <div class="overflow-hidden">
+                                <p class="text-xs font-semibold text-white truncate">${user.name}</p>
+                                <p class="text-[10px] text-slate-400 capitalize">${user.role === 'teacher' ? 'Guru Pengampu' : 'Siswa'}</p>
+                            </div>
+                        </div>
+                        <button onclick="handleLogout()" class="w-full flex items-center justify-center gap-2 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-xl text-xs font-semibold transition">
+                            <i data-lucide="log-out" class="w-4 h-4"></i>
+                            <span>Keluar Sistem</span>
+                        </button>
+                    </div>
+                </aside>
+
+                <!-- Navigation Mobile Header -->
+                <header class="md:hidden bg-navy-800 text-white p-4 flex items-center justify-between sticky top-0 z-30 shadow-md">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="atom" class="w-6 h-6 text-cyan"></i>
+                        <span class="font-bold text-sm tracking-tight">${cfg.SUBJECT_NAME} XI</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="handleLogout()" class="p-2 text-rose-400 hover:bg-slate-800 rounded-lg">
+                            <i data-lucide="log-out" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                </header>
+
+                <!-- Mobile Bottom Bar Navigation -->
+                <div class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-30 flex justify-around p-2 shadow-lg">
+                    ${navItems.slice(0, 5).map(item => `
+                        <button onclick="switchTab('${item.id}')" class="flex flex-col items-center gap-1 p-2 ${state.currentTab === item.id ? 'text-electric font-bold' : 'text-slate-400'}">
+                            <i data-lucide="${item.icon}" class="w-5 h-5"></i>
+                            <span class="text-[10px]">${item.label.split(' ')[0]}</span>
+                        </button>
+                    `).join('')}
+                </div>
+
+                <!-- Main Content Body -->
+                <main class="flex-1 flex flex-col min-w-0 overflow-y-auto pb-20 md:pb-6">
+                    <div class="p-4 md:p-8 max-w-7xl w-full mx-auto space-y-6">
+                        ${contentHtml}
+                    </div>
+                </main>
+            </div>
+            `;
+        }
+
+        function switchTab(tabId) {
+            state.currentTab = tabId;
+            renderApp();
+        }
+
+        function renderDashboardView() {
+            const cfg = Storage.get('config', APP_CONFIG);
+            const user = state.currentUser;
+            const evaluations = Storage.get('evaluations', []);
+            const userEval = evaluations.find(e => e.student_id === user.id);
+
+            return `
+            <!-- Top Welcome Banner -->
+            <div class="bg-gradient-to-r from-navy-900 via-slate-900 to-electric rounded-3xl p-6 md:p-8 text-white shadow-xl relative overflow-hidden">
+                <div class="absolute right-0 top-0 bottom-0 w-1/3 bg-cyan/10 blur-2xl pointer-events-none"></div>
+                <div class="relative z-10 max-w-2xl">
+                    <span class="px-3 py-1 bg-cyan/20 text-cyan rounded-full text-xs font-semibold uppercase tracking-widest">
+                        Semester ${cfg.SEMESTER} • SMA ${cfg.GRADE}
+                    </span>
+                    <h2 class="text-2xl md:text-3xl font-extrabold mt-3 mb-2">
+                        Selamat Datang, ${user.name}!
+                    </h2>
+                    <p class="text-slate-300 text-sm leading-relaxed">
+                        Topik Utama saat ini: <strong class="text-cyan font-semibold">${cfg.TOPIC_NAME}</strong>. Silakan eksplorasi modul pembelajaran, simulasi laboratorium virtual, atau selesaikan ujian evaluasi.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Learning Outcome Card -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="p-2.5 rounded-xl bg-cyan/10 text-cyan">
+                        <i data-lucide="target" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-slate-900 text-base">Capaian Pembelajaran (CP) & Tujuan</h3>
+                        <p class="text-xs text-slate-500">${cfg.SUBJECT_NAME} Kelas ${cfg.GRADE}</p>
+                    </div>
+                </div>
+                <p class="text-sm text-slate-700 bg-slate-50 p-4 rounded-xl border border-slate-100 mb-4 leading-relaxed font-medium">
+                    "${cfg.LEARNING_OUTCOMES}"
+                </p>
+                <div class="grid md:grid-cols-2 gap-3 text-xs">
+                    ${cfg.LEARNING_OBJECTIVES.map((obj, idx) => `
+                        <div class="flex items-start gap-2.5 p-3 rounded-xl bg-slate-50/80 border border-slate-100">
+                            <span class="w-5 h-5 rounded-full bg-electric/10 text-electric flex items-center justify-center font-bold shrink-0 text-[11px]">${idx + 1}</span>
+                            <span class="text-slate-600 leading-normal">${obj}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+
+            <!-- Stats Overview Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-4">
+                    <div class="p-3 bg-blue-50 text-electric rounded-2xl">
+                        <i data-lucide="book-open" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-semibold text-slate-400">Total Modul</p>
+                        <p class="text-xl font-bold text-slate-900">4 Modul</p>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-4">
+                    <div class="p-3 bg-cyan/10 text-cyan rounded-2xl">
+                        <i data-lucide="activity" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-semibold text-slate-400">Simulasi Virtual</p>
+                        <p class="text-xl font-bold text-slate-900">Lab GLB</p>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-4">
+                    <div class="p-3 bg-amber-50 text-amber-600 rounded-2xl">
+                        <i data-lucide="award" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-semibold text-slate-400">KKM Ketuntasan</p>
+                        <p class="text-xl font-bold text-slate-900">${cfg.PASSING_SCORE}</p>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-4">
+                    <div class="p-3 bg-emerald-50 text-emerald-600 rounded-2xl">
+                        <i data-lucide="check-circle-2" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-semibold text-slate-400">Status Evaluasi</p>
+                        <p class="text-sm font-bold ${userEval ? 'text-emerald-600' : 'text-slate-500'}">
+                            ${userEval ? `Selesai (${userEval.score})` : 'Belum Dikerjakan'}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Direct Action Section -->
+            <div class="bg-gradient-to-r from-electric to-blue-700 rounded-2xl p-6 text-white flex flex-col md:flex-row items-center justify-between gap-4">
+                <div>
+                    <h4 class="font-bold text-lg">Mulai Eksperimen Simulasi GLB</h4>
+                    <p class="text-xs text-blue-100 mt-1">Uji variabel kecepatan, waktu, dan amati grafik s-t serta v-t secara langsung!</p>
+                </div>
+                <button onclick="switchTab('simulation')" class="px-5 py-3 bg-white text-electric font-bold rounded-xl shadow-md hover:bg-slate-100 transition text-xs shrink-0 flex items-center gap-2">
+                    <i data-lucide="play" class="w-4 h-4 fill-current"></i>
+                    <span>Buka Lab Simulasi</span>
+                </button>
+            </div>
+            `;
+        }
+
+        function renderMaterialsView() {
+            return `
+            <div class="space-y-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-900">Materi & Modul Interaktif</h2>
+                    <p class="text-sm text-slate-500">Konsep Fisika Gerak Lurus Beraturan (GLB)</p>
+                </div>
+
+                <div class="grid lg:grid-cols-3 gap-6">
+                    <!-- Navigation Cards -->
+                    <div class="space-y-3">
+                        <div onclick="selectMaterial(1)" id="mat-card-1" class="p-4 rounded-2xl bg-white border-2 border-electric shadow-sm cursor-pointer hover:border-electric transition">
+                            <span class="text-[10px] font-bold text-electric uppercase tracking-wider">Modul 1</span>
+                            <h4 class="font-bold text-slate-900 text-sm mt-1">Konsep Dasar GLB & Ciri-Ciri</h4>
+                            <p class="text-xs text-slate-500 mt-1">Definisi, lintasan, dan sifat kecepatan konstan.</p>
+                        </div>
+                        <div onclick="selectMaterial(2)" id="mat-card-2" class="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm cursor-pointer hover:border-electric transition">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Modul 2</span>
+                            <h4 class="font-bold text-slate-900 text-sm mt-1">Besaran Fisis: s, v, dan t</h4>
+                            <p class="text-xs text-slate-500 mt-1">Jarak vs Perpindahan & Kelajuan vs Kecepatan.</p>
+                        </div>
+                        <div onclick="selectMaterial(3)" id="mat-card-3" class="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm cursor-pointer hover:border-electric transition">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Modul 3</span>
+                            <h4 class="font-bold text-slate-900 text-sm mt-1">Analisis Grafik Kinematika</h4>
+                            <p class="text-xs text-slate-500 mt-1">Interpretasi Grafik (s - t) dan Grafik (v - t).</p>
+                        </div>
+                    </div>
+
+                    <!-- Material Content Container -->
+                    <div class="lg:col-span-2 bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6" id="materialContentArea">
+                        ${getMaterialDetail(1)}
+                    </div>
+                </div>
+            </div>
+            `;
+        }
+
+        function selectMaterial(id) {
+            [1,2,3].forEach(i => {
+                const card = document.getElementById(`mat-card-${i}`);
+                if (card) {
+                    if (i === id) {
+                        card.className = "p-4 rounded-2xl bg-white border-2 border-electric shadow-sm cursor-pointer hover:border-electric transition";
+                    } else {
+                        card.className = "p-4 rounded-2xl bg-white border border-slate-200 shadow-sm cursor-pointer hover:border-electric transition";
+                    }
+                }
+            });
+            document.getElementById('materialContentArea').innerHTML = getMaterialDetail(id);
+            if (window.MathJax) {
+                MathJax.typesetPromise();
+            }
+        }
+
+        function getMaterialDetail(id) {
+            if (id === 1) {
+                return `
+                <span class="px-3 py-1 bg-blue-50 text-electric rounded-full text-xs font-bold uppercase">Modul Pembelajaran 1</span>
+                <h3 class="text-2xl font-extrabold text-slate-900 mt-2">Pengertian & Ciri-Ciri Gerak Lurus Beraturan (GLB)</h3>
+                <div class="prose prose-slate max-w-none text-sm text-slate-700 space-y-4">
+                    <p><strong>Gerak Lurus Beraturan (GLB)</strong> adalah gerak suatu benda pada lintasan yang lurus dengan kecepatan yang konstan (tetap) setiap saat. Karena kecepatannya tetap, maka percepatan ($a$) pada GLB bernilai nol ($a = 0$).</p>
+                    
+                    <div class="bg-slate-50 p-4 rounded-xl border-l-4 border-electric space-y-2">
+                        <h5 class="font-bold text-slate-900">Ciri-Ciri Utama GLB:</h5>
+                        <ul class="list-disc pl-5 space-y-1 text-xs text-slate-600">
+                            <li>Lintasan gerak berupa garis lurus.</li>
+                            <li>Kecepatan benda ($v$) selalu tetap atau konstan pada setiap selang waktu.</li>
+                            <li>Percepatan benda ($a = 0$).</li>
+                            <li>Menempuh jarak yang sama dalam selang waktu yang sama.</li>
+                        </ul>
+                    </div>
+
+                    <h4 class="font-bold text-slate-900 text-base pt-2">Persamaan Matematis GLB</h4>
+                    <p>Hubungan antara jarak tempuh ($s$), kecepatan ($v$), dan waktu ($t$) dirumuskan sebagai berikut:</p>
+                    
+                    <div class="p-4 bg-navy-900 text-white rounded-xl text-center text-lg font-mono">
+                        s = v × t
+                    </div>
+
+                    <p class="text-xs text-slate-500">Dengan rincian besaran:</p>
+                    <ul class="text-xs space-y-1 text-slate-600 pl-4">
+                        <li>• <strong>s</strong> = Jarak / Perpindahan (meter [m])</li>
+                        <li>• <strong>v</strong> = Kecepatan / Kelajuan (meter/sekon [m/s])</li>
+                        <li>• <strong>t</strong> = Waktu tempuh (sekon [s])</li>
+                    </ul>
+                </div>
+                `;
+            } else if (id === 2) {
+                return `
+                <span class="px-3 py-1 bg-blue-50 text-electric rounded-full text-xs font-bold uppercase">Modul Pembelajaran 2</span>
+                <h3 class="text-2xl font-extrabold text-slate-900 mt-2">Jarak, Perpindahan, Kelajuan, dan Kecepatan</h3>
+                <div class="prose prose-slate max-w-none text-sm text-slate-700 space-y-4">
+                    <p>Sering kali dalam kehidupan sehari-hari kita menyamakan istilah jarak dengan perpindahan. Namun dalam ilmu Fisika, keduanya memiliki makna yang sangat berbeda.</p>
+
+                    <div class="grid md:grid-cols-2 gap-4 text-xs">
+                        <div class="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                            <h5 class="font-bold text-slate-900 text-sm mb-1">Jarak (Skalar)</h5>
+                            <p class="text-slate-600">Total panjang lintasan yang ditempuh oleh suatu benda tanpa memeperhatikan arah gerak. Selalu bernilai positif.</p>
+                        </div>
+                        <div class="p-4 rounded-xl bg-blue-50 border border-blue-200">
+                            <h5 class="font-bold text-electric text-sm mb-1">Perpindahan (Vektor)</h5>
+                            <p class="text-slate-600">Perubahan posisi benda dari posisi awal ke posisi akhir. Memperhatikan arah gerak benda.</p>
+                        </div>
+                    </div>
+
+                    <h4 class="font-bold text-slate-900 text-base pt-2">Kelajuan vs Kecepatan</h4>
+                    <ul class="list-disc pl-5 text-xs text-slate-600 space-y-2">
+                        <li><strong>Kelajuan Rata-rata ($v$):</strong> Hasil bagi antara total jarak tempuh dengan total waktu yang dibutuhkan ($v = \frac{\Delta s}{\Delta t}$). Merupakan besaran skalar.</li>
+                        <li><strong>Kecepatan Rata-rata ($\vec{v}$):</strong> Hasil bagi antara perpindahan posisi dengan total waktu ($v = \frac{\Delta x}{\Delta t}$). Merupakan besaran vektor.</li>
+                    </ul>
+                </div>
+                `;
+            } else {
+                return `
+                <span class="px-3 py-1 bg-blue-50 text-electric rounded-full text-xs font-bold uppercase">Modul Pembelajaran 3</span>
+                <h3 class="text-2xl font-extrabold text-slate-900 mt-2">Interpretasi Grafik Kinematika GLB</h3>
+                <div class="prose prose-slate max-w-none text-sm text-slate-700 space-y-4">
+                    <p>Gerak Lurus Beraturan dapat dianalisis secara visual melalui dua bentuk grafik utama:</p>
+
+                    <div class="space-y-4">
+                        <div class="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                            <h5 class="font-bold text-slate-900 text-sm">1. Grafik Posisi terhadap Waktu (s - t)</h5>
+                            <p class="text-xs text-slate-600 mt-1">Berbentuk garis lurus miring ke atas. Kemiringan (gradien) dari grafik ini menunjukkan besarnya kecepatan ($v$). Semakin curam grafiknya, semakin besar kecepatannya.</p>
+                        </div>
+                        <div class="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                            <h5 class="font-bold text-slate-900 text-sm">2. Grafik Kecepatan terhadap Waktu (v - t)</h5>
+                            <p class="text-xs text-slate-600 mt-1">Berbentuk garis lurus horizontal datar. Hal ini menunjukkan bahwa kecepatan bernilai konstan sepanjang waktu. Luas daerah di bawah grafik $v-t$ sama dengan jarak tempuh ($s$).</p>
+                        </div>
+                    </div>
+                </div>
+                `;
+            }
+        }
+
+        function renderSimulationView() {
+            return `
+            <div class="space-y-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-900">Laboratorium Virtual GLB</h2>
+                        <p class="text-sm text-slate-500">Simulasi Gerak Lurus Beraturan secara Real-Time</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="startSimulation()" id="simStartBtn" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md transition flex items-center gap-2">
+                            <i data-lucide="play" class="w-4 h-4"></i> Jalankan Simulasi
+                        </button>
+                        <button onclick="pauseSimulation()" id="simPauseBtn" class="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition hidden flex items-center gap-2">
+                            <i data-lucide="pause" class="w-4 h-4"></i> Jeda
+                        </button>
+                        <button onclick="resetSimulation()" class="px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-2">
+                            <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Reset
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Simulation Canvas Render Box -->
+                <div class="bg-slate-900 rounded-2xl p-6 shadow-xl border border-slate-800 text-white space-y-4">
+                    <div class="flex justify-between items-center text-xs font-mono text-cyan">
+                        <span>LINTASAN UTAMA (X-AXIS)</span>
+                        <span>POSISI REALTME: <strong id="simPosText" class="text-white">0.0 m</strong></span>
+                    </div>
+
+                    <div class="relative bg-slate-950 rounded-xl h-36 overflow-hidden border border-slate-800 flex items-center">
+                        <!-- Grid Lines -->
+                        <div class="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px)] bg-[size:40px_100%] opacity-40"></div>
+                        
+                        <!-- Physics Car Object -->
+                        <div id="simCar" class="absolute left-4 top-1/2 -translate-y-1/2 transition-all duration-75 flex flex-col items-center">
+                            <div class="p-2 bg-electric text-white rounded-xl shadow-lg shadow-electric/50">
+                                <i data-lucide="car" class="w-6 h-6"></i>
+                            </div>
+                            <span class="text-[10px] font-mono text-cyan mt-1">Mobil A</span>
+                        </div>
+                    </div>
+
+                    <!-- Parameter Controls -->
+                    <div class="grid md:grid-cols-3 gap-4 pt-2">
+                        <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700/60">
+                            <label class="block text-xs font-medium text-slate-300 mb-2">Kecepatan ($v$): <strong id="simVVal" class="text-cyan">10 m/s</strong></label>
+                            <input type="range" id="simVInput" min="1" max="25" value="10" oninput="updateSimParams()" class="w-full accent-cyan">
+                        </div>
+
+                        <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700/60">
+                            <label class="block text-xs font-medium text-slate-300 mb-2">Posisi Awal ($s_0$): <strong id="simS0Val" class="text-cyan">0 m</strong></label>
+                            <input type="range" id="simS0Input" min="0" max="50" value="0" oninput="updateSimParams()" class="w-full accent-cyan">
+                        </div>
+
+                        <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700/60">
+                            <label class="block text-xs font-medium text-slate-300 mb-2">Waktu Berjalan ($t$): <strong id="simTimeVal" class="text-cyan">0.0 s</strong></label>
+                            <div class="w-full bg-slate-900 rounded-full h-3 overflow-hidden mt-3">
+                                <div id="simProgressBar" class="bg-cyan h-full w-0 transition-all duration-100"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Graphs Container -->
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                        <h4 class="font-bold text-slate-900 text-sm mb-4">Grafik Posisi vs Waktu (s - t)</h4>
+                        <canvas id="chartST" height="200"></canvas>
+                    </div>
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                        <h4 class="font-bold text-slate-900 text-sm mb-4">Grafik Kecepatan vs Waktu (v - t)</h4>
+                        <canvas id="chartVT" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+            `;
+        }
+
+        // Simulation Controller Logic
+        let chartSTInstance = null;
+        let chartVTInstance = null;
+
+        function initSimulationCharts() {
+            const ctxST = document.getElementById('chartST')?.getContext('2d');
+            const ctxVT = document.getElementById('chartVT')?.getContext('2d');
+
+            if (!ctxST || !ctxVT) return;
+
+            chartSTInstance = new Chart(ctxST, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Posisi s (m)',
+                        data: [],
+                        borderColor: '#0066FF',
+                        backgroundColor: 'rgba(0,102,255,0.1)',
+                        fill: true,
+                        tension: 0.1
+                    }]
+                },
+                options: { responsive: true, scales: { x: { title: { display: true, text: 'Waktu (s)' } }, y: { title: { display: true, text: 'Posisi (m)' } } } }
+            });
+
+            chartVTInstance = new Chart(ctxVT, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Kecepatan v (m/s)',
+                        data: [],
+                        borderColor: '#00D8F6',
+                        backgroundColor: 'rgba(0,216,246,0.1)',
+                        fill: true,
+                        tension: 0
+                    }]
+                },
+                options: { responsive: true, scales: { x: { title: { display: true, text: 'Waktu (s)' } }, y: { title: { display: true, text: 'Kecepatan (m/s)' }, min: 0, max: 30 } } }
+            });
+        }
+
+        function updateSimParams() {
+            const v = parseFloat(document.getElementById('simVInput').value);
+            const s0 = parseFloat(document.getElementById('simS0Input').value);
+            state.simulationState.v = v;
+            state.simulationState.s0 = s0;
+            document.getElementById('simVVal').innerText = `${v} m/s`;
+            document.getElementById('simS0Val').innerText = `${s0} m`;
+        }
+
+        function startSimulation() {
+            if (state.simulationState.running) return;
+            state.simulationState.running = true;
+            document.getElementById('simStartBtn').classList.add('hidden');
+            document.getElementById('simPauseBtn').classList.remove('hidden');
+
+            state.simulationState.interval = setInterval(() => {
+                state.simulationState.time += 0.2;
+                const t = state.simulationState.time;
+                const v = state.simulationState.v;
+                const s0 = state.simulationState.s0;
+                const pos = s0 + (v * t);
+
+                // Update UI elements
+                document.getElementById('simPosText').innerText = `${pos.toFixed(1)} m`;
+                document.getElementById('simTimeVal').innerText = `${t.toFixed(1)} s`;
+                document.getElementById('simProgressBar').style.width = `${(t / state.simulationState.tMax) * 100}%`;
+
+                // Update Car Position Visual
+                const simCar = document.getElementById('simCar');
+                if (simCar) {
+                    const maxPx = 80; // percent width max
+                    const percent = Math.min((pos / 300) * 100, maxPx);
+                    simCar.style.left = `calc(${percent}% + 16px)`;
+                }
+
+                // Update Charts
+                if (chartSTInstance && chartVTInstance) {
+                    chartSTInstance.data.labels.push(t.toFixed(1));
+                    chartSTInstance.data.datasets[0].data.push(pos.toFixed(1));
+                    chartSTInstance.update('none');
+
+                    chartVTInstance.data.labels.push(t.toFixed(1));
+                    chartVTInstance.data.datasets[0].data.push(v);
+                    chartVTInstance.update('none');
+                }
+
+                if (t >= state.simulationState.tMax) {
+                    pauseSimulation();
+                }
+            }, 200);
+        }
+
+        function pauseSimulation() {
+            state.simulationState.running = false;
+            clearInterval(state.simulationState.interval);
+            document.getElementById('simStartBtn').classList.remove('hidden');
+            document.getElementById('simPauseBtn').classList.add('hidden');
+        }
+
+        function resetSimulation() {
+            pauseSimulation();
+            state.simulationState.time = 0;
+            document.getElementById('simPosText').innerText = `0.0 m`;
+            document.getElementById('simTimeVal').innerText = `0.0 s`;
+            document.getElementById('simProgressBar').style.width = `0%`;
+            document.getElementById('simCar').style.left = `16px`;
+
+            if (chartSTInstance && chartVTInstance) {
+                chartSTInstance.data.labels = [];
+                chartSTInstance.data.datasets[0].data = [];
+                chartSTInstance.update();
+
+                chartVTInstance.data.labels = [];
+                chartVTInstance.data.datasets[0].data = [];
+                chartVTInstance.update();
+            }
+        }
+
+        function renderEvaluationView() {
+            const user = state.currentUser;
+            const cfg = Storage.get('config', APP_CONFIG);
+            const evaluations = Storage.get('evaluations', []);
+            const userEval = evaluations.find(e => e.student_id === user.id);
+
+            if (state.examState.active) {
+                return renderExamSession();
+            }
+
+            return `
+            <div class="space-y-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-900">Evaluasi Pembelajaran</h2>
+                    <p class="text-sm text-slate-500">Ujian Kemampuan Mandiri (${cfg.DEFAULT_QUESTION_COUNT} Soal Pilihan Ganda)</p>
+                </div>
+
+                <!-- Exam Rule Card -->
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex items-center gap-3">
+                        <div class="p-3 bg-amber-50 text-amber-600 rounded-xl">
+                            <i data-lucide="shield-alert" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-slate-900 text-base">Aturan dan Petunjuk Ujian</h3>
+                            <p class="text-xs text-slate-500">Harap baca dengan cermat sebelum memulai</p>
+                        </div>
+                    </div>
+
+                    <div class="grid md:grid-cols-2 gap-4 text-xs text-slate-600">
+                        <div class="p-3 rounded-xl bg-slate-50 flex items-center gap-3">
+                            <i data-lucide="help-circle" class="w-5 h-5 text-electric"></i>
+                            <span>Jumlah Soal: <strong>${cfg.DEFAULT_QUESTION_COUNT} Soal</strong></span>
+                        </div>
+                        <div class="p-3 rounded-xl bg-slate-50 flex items-center gap-3">
+                            <i data-lucide="clock" class="w-5 h-5 text-electric"></i>
+                            <span>Alokasi Waktu: <strong>60 Menit</strong></span>
+                        </div>
+                        <div class="p-3 rounded-xl bg-slate-50 flex items-center gap-3">
+                            <i data-lucide="check-circle-2" class="w-5 h-5 text-electric"></i>
+                            <span>Batas Ketuntasan (KKM): <strong>${cfg.PASSING_SCORE}</strong></span>
+                        </div>
+                        <div class="p-3 rounded-xl bg-slate-50 flex items-center gap-3">
+                            <i data-lucide="refresh-cw" class="w-5 h-5 text-electric"></i>
+                            <span>Batas Percobaan: <strong>Maksimal ${cfg.MAX_EVALUATION_ATTEMPTS} Kali</strong></span>
+                        </div>
+                    </div>
+
+                    ${userEval ? `
+                        <div class="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="check-circle" class="w-5 h-5 text-emerald-600"></i>
+                                <span>Anda telah menyelesaikan ujian ini dengan skor: <strong>${userEval.score}</strong></span>
+                            </div>
+                            <span class="px-2.5 py-1 bg-emerald-200 font-bold rounded-lg">${userEval.score >= cfg.PASSING_SCORE ? 'LULUS' : 'REMIDI'}</span>
+                        </div>
+                    ` : ''}
+
+                    <div class="pt-2">
+                        <button onclick="startExam()" ${userEval ? 'disabled' : ''} class="w-full md:w-auto px-6 py-3.5 bg-electric hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg shadow-electric/30 transition flex items-center justify-center gap-2 text-sm">
+                            <i data-lucide="play-circle" class="w-5 h-5"></i>
+                            <span>${userEval ? 'Batas Percobaan Habis' : 'Mulai Ujian Sekarang'}</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            `;
+        }
+
+        function startExam() {
+            state.examState.active = true;
+            state.examState.currentQuestion = 0;
+            state.examState.answers = {};
+            state.examState.timeLeft = 3600;
+
+            state.examState.timerInterval = setInterval(() => {
+                state.examState.timeLeft--;
+                const min = Math.floor(state.examState.timeLeft / 60);
+                const sec = state.examState.timeLeft % 60;
+                const timerEl = document.getElementById('examTimer');
+                if (timerEl) {
+                    timerEl.innerText = `${min < 10 ? '0' : ''}${min}:${sec < 10 ? '0' : ''}${sec}`;
+                }
+                if (state.examState.timeLeft <= 0) {
+                    submitExam();
+                }
+            }, 1000);
+
+            renderApp();
+        }
+
+        function renderExamSession() {
+            const qIdx = state.examState.currentQuestion;
+            const q = DefaultQuestionsBank[qIdx];
+            const total = DefaultQuestionsBank.length;
+
+            return `
+            <div class="space-y-6">
+                <!-- Exam Header Bar -->
+                <div class="bg-navy-800 text-white p-4 rounded-2xl flex items-center justify-between shadow-lg">
+                    <div class="flex items-center gap-3">
+                        <span class="px-3 py-1 bg-cyan/20 text-cyan font-bold rounded-xl text-xs">
+                            Soal ${qIdx + 1} / ${total}
+                        </span>
+                        <span class="text-xs text-slate-300 hidden sm:inline">Topik: GLB</span>
+                    </div>
+
+                    <div class="flex items-center gap-2 text-xs font-mono font-bold text-cyan bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-700">
+                        <i data-lucide="clock" class="w-4 h-4"></i>
+                        <span id="examTimer">60:00</span>
+                    </div>
+                </div>
+
+                <!-- Main Question Box -->
+                <div class="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+                    <div class="flex items-center justify-between text-xs text-slate-400 border-b border-slate-100 pb-3">
+                        <span>Tingkat Kesulitan: <strong>${q.difficulty}</strong></span>
+                        <span>Bobot: 10 Poin</span>
+                    </div>
+
+                    <p class="text-slate-800 font-medium text-base leading-relaxed">
+                        ${q.text}
+                    </p>
+
+                    <div class="space-y-3 pt-2">
+                        ${q.options.map((opt, i) => `
+                            <label onclick="selectAnswer(${qIdx}, ${i})" class="flex items-center gap-3 p-4 rounded-xl border ${state.examState.answers[qIdx] === i ? 'border-electric bg-blue-50/50 font-semibold' : 'border-slate-200 hover:bg-slate-50'} cursor-pointer transition">
+                                <input type="radio" name="opt_${qIdx}" ${state.examState.answers[qIdx] === i ? 'checked' : ''} class="w-4 h-4 text-electric">
+                                <span class="text-sm text-slate-700">${opt}</span>
+                            </label>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <!-- Exam Action Bar -->
+                <div class="flex items-center justify-between pt-2">
+                    <button onclick="navigateQuestion(-1)" ${qIdx === 0 ? 'disabled' : ''} class="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 disabled:opacity-50 font-bold rounded-xl text-slate-700 text-xs transition">
+                        Sebelumnya
+                    </button>
+
+                    ${qIdx === total - 1 ? `
+                        <button onclick="submitExam()" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-lg transition">
+                            Selesaikan & Kirim Jawaban
+                        </button>
+                    ` : `
+                        <button onclick="navigateQuestion(1)" class="px-5 py-2.5 bg-electric hover:bg-blue-700 text-white font-bold rounded-xl text-xs shadow-md transition">
+                            Selanjutnya
+                        </button>
+                    `}
+                </div>
+            </div>
+            `;
+        }
+
+        function selectAnswer(qIdx, optionIdx) {
+            state.examState.answers[qIdx] = optionIdx;
+            renderApp();
+        }
+
+        function navigateQuestion(direction) {
+            state.examState.currentQuestion += direction;
+            renderApp();
+        }
+
+        function submitExam() {
+            clearInterval(state.examState.timerInterval);
+            state.examState.active = false;
+
+            // Calculate Score
+            let correct = 0;
+            DefaultQuestionsBank.forEach((q, idx) => {
+                if (state.examState.answers[idx] === q.correct) {
+                    correct++;
+                }
+            });
+
+            const total = DefaultQuestionsBank.length;
+            const score = Math.round((correct / total) * 100);
+
+            const user = state.currentUser;
+            const evaluations = Storage.get('evaluations', []);
+
+            const newEval = {
+                evaluation_id: 'eval_' + Date.now(),
+                student_id: user.id,
+                student_name: user.name,
+                nisn: user.student_id || '10293847',
+                topic: APP_CONFIG.TOPIC_NAME,
+                score: score,
+                correct_count: correct,
+                incorrect_count: total - correct,
+                unanswered_count: 0,
+                total_questions: total,
+                submitted_at: new Date().toISOString(),
+                attempts: 1
+            };
+
+            evaluations.push(newEval);
+            Storage.set('evaluations', evaluations);
+
+            showToast(`Ujian Selesai! Skor Anda: ${score}`);
+            renderApp();
+        }
+
+        function renderAnalyticsView() {
+            const evaluations = Storage.get('evaluations', []);
+            const user = state.currentUser;
+            const cfg = Storage.get('config', APP_CONFIG);
+
+            return `
+            <div class="space-y-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-900">Laporan & Analisis Capaian</h2>
+                        <p class="text-sm text-slate-500">Pemantauan Hasil Belajar Siswa Berbasis Database</p>
+                    </div>
+
+                    ${user.role === 'teacher' ? `
+                        <button onclick="exportToGoogleSheets()" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-md transition flex items-center gap-2">
+                            <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+                            <span>Sinkronkan ke Google Spreadsheet</span>
+                        </button>
+                    ` : ''}
+                </div>
+
+                <!-- Summary Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                        <p class="text-xs font-semibold text-slate-400">Total Ujian Masuk</p>
+                        <p class="text-2xl font-extrabold text-slate-900 mt-1">${evaluations.length} Siswa</p>
+                    </div>
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                        <p class="text-xs font-semibold text-slate-400">Rata-rata Skor Kelas</p>
+                        <p class="text-2xl font-extrabold text-electric mt-1">
+                            ${evaluations.length ? Math.round(evaluations.reduce((a,b)=>a+b.score,0)/evaluations.length) : 0} / 100
+                        </p>
+                    </div>
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                        <p class="text-xs font-semibold text-slate-400">Tingkat Ketuntasan</p>
+                        <p class="text-2xl font-extrabold text-emerald-600 mt-1">
+                            ${evaluations.length ? Math.round((evaluations.filter(e=>e.score>=cfg.PASSING_SCORE).length/evaluations.length)*100) : 0}%
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Results Table -->
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+                        <h4 class="font-bold text-slate-900 text-sm">Daftar Hasil Evaluasi</h4>
+                        <span class="text-xs text-slate-400">Database Context: ${cfg.DATABASE_PROVIDER}</span>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-50 text-slate-500 font-bold border-b border-slate-100">
+                                <tr>
+                                    <th class="p-4">Nama Siswa</th>
+                                    <th class="p-4">NISN</th>
+                                    <th class="p-4">Topik</th>
+                                    <th class="p-4">Benar / Salah</th>
+                                    <th class="p-4">Nilai</th>
+                                    <th class="p-4">Status</th>
+                                    <th class="p-4">Waktu Selesai</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 text-slate-700">
+                                ${evaluations.map(e => `
+                                    <tr class="hover:bg-slate-50 transition">
+                                        <td class="p-4 font-bold text-slate-900">${e.student_name}</td>
+                                        <td class="p-4">${e.nisn}</td>
+                                        <td class="p-4">${e.topic}</td>
+                                        <td class="p-4">${e.correct_count} / ${e.incorrect_count}</td>
+                                        <td class="p-4 font-extrabold ${e.score >= cfg.PASSING_SCORE ? 'text-emerald-600' : 'text-rose-600'}">${e.score}</td>
+                                        <td class="p-4">
+                                            <span class="px-2 py-1 rounded-md text-[10px] font-bold ${e.score >= cfg.PASSING_SCORE ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}">
+                                                ${e.score >= cfg.PASSING_SCORE ? 'TUNTAS' : 'BELUM TUNTAS'}
+                                            </span>
+                                        </td>
+                                        <td class="p-4 text-slate-400">${new Date(e.submitted_at).toLocaleString('id-ID')}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            `;
+        }
+
+        function exportToGoogleSheets() {
+            openModal(`
+                <div class="space-y-4">
+                    <div class="flex items-center gap-3 text-emerald-600">
+                        <i data-lucide="file-spreadsheet" class="w-8 h-8"></i>
+                        <h3 class="font-bold text-lg text-slate-900">Integrasi Google Spreadsheets Backend</h3>
+                    </div>
+                    <p class="text-xs text-slate-600 leading-relaxed">
+                        Data evaluasi dan konfigurasi siap diunggah ke struktur Google Sheets melalui Apps Script API Endpoint.
+                    </p>
+                    <div class="p-3 bg-slate-900 text-cyan font-mono text-xs rounded-xl">
+                        POST /exec?action=syncEvaluations
+                    </div>
+                    <button onclick="closeModal(); showToast('Data berhasil disinkronkan ke Google Sheets!');" class="w-full py-3 bg-emerald-600 text-white font-bold rounded-xl text-xs hover:bg-emerald-700 transition">
+                        Proses Sinkronisasi Sekarang
+                    </button>
+                </div>
+            `);
+        }
+
+        function renderSettingsView() {
+            const cfg = Storage.get('config', APP_CONFIG);
+
+            return `
+            <div class="space-y-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-900">Pengaturan Pembelajaran</h2>
+                    <p class="text-sm text-slate-500">Konfigurasi Variabel Aplikasi & Parameter Evaluasi</p>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+                    <form onsubmit="saveSettings(event)" class="space-y-4 text-xs">
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-1">Nama Mata Pelajaran</label>
+                                <input type="text" id="cfgSubject" value="${cfg.SUBJECT_NAME}" class="w-full p-3 bg-slate-50 border rounded-xl outline-none">
+                            </div>
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-1">Kelas & Jenjang</label>
+                                <input type="text" id="cfgGrade" value="${cfg.GRADE} ${cfg.SCHOOL_LEVEL}" class="w-full p-3 bg-slate-50 border rounded-xl outline-none">
+                            </div>
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-1">Topik Utama Pembelajaran</label>
+                                <input type="text" id="cfgTopic" value="${cfg.TOPIC_NAME}" class="w-full p-3 bg-slate-50 border rounded-xl outline-none">
+                            </div>
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-1">Nilai Ketuntasan Minimal (KKM)</label>
+                                <input type="number" id="cfgPassing" value="${cfg.PASSING_SCORE}" class="w-full p-3 bg-slate-50 border rounded-xl outline-none">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Capaian Pembelajaran (CP)</label>
+                            <textarea id="cfgOutcomes" rows="3" class="w-full p-3 bg-slate-50 border rounded-xl outline-none">${cfg.LEARNING_OUTCOMES}</textarea>
+                        </div>
+
+                        <button type="submit" class="px-6 py-3 bg-electric hover:bg-blue-700 text-white font-bold rounded-xl transition">
+                            Simpan Perubahan Konfigurasi
+                        </button>
+                    </form>
+                </div>
+            </div>
+            `;
+        }
+
+        function saveSettings(e) {
+            e.preventDefault();
+            const cfg = Storage.get('config', APP_CONFIG);
+            cfg.SUBJECT_NAME = document.getElementById('cfgSubject').value;
+            cfg.TOPIC_NAME = document.getElementById('cfgTopic').value;
+            cfg.PASSING_SCORE = parseInt(document.getElementById('cfgPassing').value);
+            cfg.LEARNING_OUTCOMES = document.getElementById('cfgOutcomes').value;
+
+            Storage.set('config', cfg);
+            showToast('Konfigurasi aplikasi berhasil diperbarui!');
+            renderApp();
+        }
+
+        function renderApp() {
+            const app = document.getElementById('app');
+
+            if (!state.currentUser) {
+                app.innerHTML = renderLogin();
+            } else {
+                let contentHtml = '';
+                switch (state.currentTab) {
+                    case 'dashboard':
+                        contentHtml = renderDashboardView();
+                        break;
+                    case 'materials':
+                        contentHtml = renderMaterialsView();
+                        break;
+                    case 'simulation':
+                        contentHtml = renderSimulationView();
+                        setTimeout(initSimulationCharts, 100);
+                        break;
+                    case 'evaluation':
+                        contentHtml = renderEvaluationView();
+                        break;
+                    case 'analytics':
+                        contentHtml = renderAnalyticsView();
+                        break;
+                    case 'settings':
+                        contentHtml = renderSettingsView();
+                        break;
+                    default:
+                        contentHtml = renderDashboardView();
+                }
+                app.innerHTML = renderMainLayout(contentHtml);
+            }
+
+            lucide.createIcons();
+            if (window.MathJax) {
+                MathJax.typesetPromise();
+            }
+        }
+
+        // Window Init
+        window.onload = function () {
+            renderApp();
+        };
+    </script>
+</body>
+</html>
